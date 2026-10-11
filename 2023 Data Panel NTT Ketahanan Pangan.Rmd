@@ -1,0 +1,78 @@
+---
+title: "2023 Data Panek NTT Ketahanan Pangan"
+author: "Sandra Berliana Putri"
+date: "2025-09-21"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(plm)
+library(lmtest)
+library(car)
+library(readxl)
+```
+
+```{r}
+data <- readxl::read_excel("D:\\NSC\\2023 Data Panel NTT Ketahanan Pangan.xlsx")
+head(data)
+```
+
+```{r}
+pdata <- pdata.frame(data, index = c("Kab","Tahun"))
+head(pdata)
+```
+
+```{r}
+# Model FEM (Fixed Effect)
+fem <- plm(IKP ~ AHH  + PDRB + Prod.Pangan, data=pdata, model="within")
+summary(fem)
+```
+
+```{r}
+# Model REM (Random Effect)
+rem <- plm(IKP ~ AHH  + PDRB + Prod.Pangan, data=pdata, model="random")
+summary(rem)
+```
+
+```{r}
+# Uji Chow (Pooled vs FEM)
+pooling <- plm(IKP ~ AHH  + PDRB + Prod.Pangan, data=pdata, model="pooling")
+pFtest(fem, pooling)
+
+# Uji Hausman (FEM vs REM)
+phtest(fem, rem)
+```
+
+```{r}
+# Lagrange Multiplier Test (LM Test) 
+plmtest(pooling, type = "bp")
+```
+
+
+```{r}
+# --- Uji Asumsi Klasik ---
+
+# Multikolinearitas (VIF)
+vif(lm(IKP ~ AHH  + PDRB + Prod.Pangan, data=data))
+
+# Normalitas residual
+resid_rem <- residuals(rem)
+shapiro.test(resid_rem)
+tseries::jarque.bera.test(resid_rem)
+
+# Heteroskedastisitas (Breusch-Pagan)
+bptest(rem)
+```
+
+```{r}
+# Standardisasi residu ke Z-score
+resid_std <- (resid_rem - mean(resid_rem)) / sd(resid_rem)
+
+# Kolmogorov–Smirnov Test terhadap Normal(0,1)
+ks.test(resid_std, "pnorm", mean=0, sd=1)
+```
+
